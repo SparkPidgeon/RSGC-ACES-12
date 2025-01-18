@@ -1,0 +1,170 @@
+// PROJECT     : Large ISP: Helping Hand
+// PURPOSE     :
+// COURSE      : ICS4U-E
+// AUTHOR      : Lucas Quintas - Tang
+// DATE        : MM/DD/YYYY
+// MCU         : 328p (NANO)
+// STATUS      : Working
+
+#include <Wire.h>
+
+#define LIMIT 10
+uint8_t DATA = 2;
+uint8_t LATCH = 3;
+uint8_t CLOCK = 4;
+uint8_t PWM1 = 5;
+uint8_t PWM2 = 6;
+uint8_t PWM5 = 9;
+uint16_t currentValue1, currentValue2, currentValue3, currentValue4, currentValue5;
+
+uint8_t FDC1004_ADDR = 0x50;    // I2C address of the FDC1004
+uint8_t MEAS1_MSB_REG = 0x00;   // MSB register for MEAS1
+uint8_t MEAS1_LSB_REG = 0x01;   // LSB register for MEAS1
+int16_t baseline = 1000;        // Example baseline capacitance value
+int16_t touchThreshold = 1200;  // Capacitance value that indicates a touch
+
+byte dataToClose[] = {
+  0b00001001,  // First 8 bits (4 unused, then 1001)
+  0b10011001,  // Middle 8 bits
+  0b10011001   // Last 8 bits
+};
+
+byte dataToOpen[] = {
+  0b00000110,
+  0b01100110,
+  0b01100110
+};
+
+void setup() {
+  Serial.begin(9600);
+  Wire.begin(9600);
+  pinMode(PWM1, OUTPUT);
+  pinMode(PWM2, OUTPUT);
+  pinMode(PWM5, OUTPUT);
+  pinMode(DATA, OUTPUT);
+  pinMode(CLOCK, OUTPUT);
+  pinMode(LATCH, OUTPUT);
+
+  TCCR0A = (1 << WGM00) | (1 << WGM01) | (1 << COM0A1) | (1 << COM0B1);  // Fast PWM mode
+  TCCR0B = (1 << CS01);                                                  // Prescaler = 8, ~3.9 kHz PWM frequency
+
+  analogWrite(PWM1, 0);
+  analogWrite(PWM2, 0);
+  analogWrite(PWM5, 0);
+
+  ConfigureFDC1004();
+}
+
+void ConfigureFDC1004() {
+  Wire.beginTransmission(FDC1004_ADDR);
+  Wire.write(0x08);  // CONFIG_MEAS1 register
+  Wire.write(0x1C);  // Set channel 1, no offset, 400 pF range
+  Wire.write(0x00);  // Set lower byte to 0
+  Wire.endTransmission();
+}
+
+void ReadMotors() {
+  uint16_t currentValue1 = analogRead(A0);
+  uint16_t currentValue2 = analogRead(A1);
+  uint16_t currentValue3 = analogRead(A2);
+  uint16_t currentValue4 = analogRead(A3);
+  uint16_t currentValue5 = analogRead(A6);
+  Serial.print("A0:");
+  Serial.print(currentValue1);
+  Serial.print("\t");
+  Serial.print("A1:");
+  Serial.print(currentValue2);
+  Serial.print("\t");
+  Serial.print("A2:");
+  Serial.print(currentValue3);
+  Serial.print("\t");
+  Serial.print("A3:");
+  Serial.print(currentValue4);
+  Serial.print("\t");
+  Serial.print("A6");
+  Serial.print(currentValue5);
+  Serial.print("\t");
+}
+
+void CheckMotors() {
+  ReadMotors();
+  if (currentValue1 > LIMIT) {
+    stopmotors();
+  }
+  if (currentValue2 > LIMIT) {
+    stopmotors();
+  }
+  if (currentValue3 > LIMIT) {
+    stopmotors();
+  }
+  if (currentValue4 > LIMIT) {
+    stopmotors();
+  }
+  if (currentValue5 > LIMIT) {
+    stopmotors();
+  }
+}
+
+void stopmotors() {
+  analogWrite(PWM1, 0);
+  analogWrite(PWM2, 0);
+  analogWrite(PWM5, 0);
+}
+
+void OpenHand() {
+  analogWrite(PWM1, 128);
+  analogWrite(PWM2, 128);
+  analogWrite(PWM5, 128);
+
+  digitalWrite(LATCH, LOW);
+  for (int i = 0; i < 3; i++) {
+    shiftOut(DATA, CLOCK, MSBFIRST, dataToOpen[i]);
+  }
+  digitalWrite(LATCH, HIGH);  // Latch the data to outputs
+  millis();                // Wait before repeating
+}
+
+void CloseHand() {
+  analogWrite(PWM1, 128);
+  analogWrite(PWM2, 128);
+  analogWrite(PWM5, 128);
+
+  digitalWrite(LATCH, LOW);
+  for (int i = 0; i < 3; i++) {
+    shiftOut(DATA, CLOCK, MSBFIRST, dataToClose[i]);
+  }
+  digitalWrite(LATCH, HIGH);  // Latch the data to outputs
+  millis();                // Wait before repeating
+}
+
+void CheckTouchSensor() {
+  int16_t capacitance = readCapacitance();
+  Serial.print("Capacitance: ");
+  Serial.println(capacitance);  // Output capacitance value
+  millis();
+}
+
+int16_t readCapacitance() {
+  Wire.beginTransmission((uint8_t)FDC1004_ADDR);  // Request MSB
+  Wire.write(MEAS1_MSB_REG);
+  Wire.endTransmission();
+
+  Wire.requestFrom((uint8_t)FDC1004_ADDR, (uint8_t)2);  // Read 2 bytes (MSB + LSB)
+  int16_t msb = Wire.read();
+  int16_t lsb = Wire.read();
+  return (msb << 8) | lsb;  // Combine MSB and LSB into 16-bit signed value
+}
+
+void loop() {
+  int16_t capacitance = readCapacitance();
+  ReadMotors();
+  CheckMotors();
+  CheckTouchSensor();
+  if (capacitance > (baseline + touchThreshold)) {
+    Serial.println("Touch detected!");
+    CloseHand();
+  } else {
+    stopmotors();
+  }
+  CheckMotors();
+}

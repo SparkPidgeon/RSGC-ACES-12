@@ -1,0 +1,71 @@
+// PROJECT  : AVR Assembly: Traffic Light
+// PURPOSE  : To drive a simple traffic light using assembly language
+// AUTHOR   : C.D'Arcy
+// COURSE   : ICS4U-E
+// DATE     : 01/10/25
+// MCU      : 328P
+// STATUS   : Working
+
+#include <avr/io.h>
+
+#define DDR DDRB-0x20
+#define PORT PORTB-0x20
+#define DATA 0xAA
+#define NUM 8
+
+.global setup
+setup:
+  sbi DDR, 0
+  SBI DDR, 1
+  ret
+
+.global loop
+loop:
+  ldi r16, DATA
+  ldi r17, NUM
+next:
+  lsl r16
+  brcs doGrn
+  rcall red
+  rjmp admire
+doGrn:
+  rcall green
+admire:
+  rcall delay1s
+  dec r17
+  brne next
+  rcall LEDOFF
+  rcall delay1s
+  rcall delay1s
+  rcall delay1s
+  ret
+
+red:
+  sbi PORT, 0
+  cbi PORT, 1
+  ret
+
+green:
+  sbi PORT, 1
+  cbi PORT, 0
+  ret
+
+LEDOFF:
+  cbi PORT, 0
+  cBI PORT, 1
+  ret
+
+delay1s:
+  ldi r18, 82
+  ldi r19, 43
+  ldi r20, 0
+L1:
+  dec r20
+  brne L1
+  dec r19
+  brne L1
+  dec r18
+  brne L1
+  lpm
+  nop
+  ret

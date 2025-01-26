@@ -6,52 +6,58 @@
 // MCU      : 328P
 // STATUS   : Working
 
-#include <avr/io.h> 
+#include <avr/io.h>   // Include the AVR IO library to use the I/O registers
 
-#define DDR DDRB-0x20
-#define PORT PORTB-0x20
+// Define macros for DDR (Data Direction Register) and PORT (Data Register)
+// Used for controlling the I/O pins of the microcontroller
+#define DDR DDRB-0x20   // Set DDRB address to control direction for PB0, PB1, PB2 (Red, Green, Yellow)
+#define PORT PORTB-0x20 // Set PORTB address to control output for PB0, PB1, PB2 (Red, Green, Yellow)
 
-.global setup
+.global setup          // Global setup function that is executed once at the start
 setup:
-  ldi r16, 0b00000111
-  out DDR, r16         ; Set PB0, PB1, and PB2 as outputs (Red, Green, Yellow)
-  ret
+  ldi r16, 0b00000111  // Load the value 0b00000111 into register r16 (binary: 00000111)
+                       // This value sets PB0, PB1, and PB2 as output pins (1 = output)
+  out DDR, r16         // Output the value of r16 to the DDR register (sets PB0, PB1, PB2 as outputs)
+  ret                  // Return from the setup function
 
-.global loop
+.global loop           // Main loop function that continually runs the traffic light sequence
 loop:
-  rcall red            ; Turn on red light
-  rcall delay1s        ; 1-second delay
-  rcall delay1s
-  rcall green          ; Turn on green light
-  rcall delay1s        ; 1-second delay
-  rcall yellow         ; Turn on yellow light
-  rcall delay1s        ; 1-second delay
-  ret
+  rcall red            // Call the 'red' function to turn on the red light
+  rcall delay1s        // Call the 'delay1s' function for a 1-second delay
+  rcall delay1s        // Call the 'delay1s' function again for another 1-second delay
+  rcall green          // Call the 'green' function to turn on the green light
+  rcall delay1s        // Call the 'delay1s' function for a 1-second delay
+  rcall yellow         // Call the 'yellow' function to turn on the yellow light
+  rcall delay1s        // Call the 'delay1s' function for a 1-second delay
+  ret                  // Return from the loop function (the loop continues indefinitely)
 
-red:
-  ldi r16, 0b00000001  ; Set PB0 (Red LED)
-  out PORT, r16
-  ret
+red:                   // Function to turn on the red light (PB0)
+  ldi r16, 0b00000001  // Load the value 0b00000001 into register r16 (binary: 00000001)
+                       // This value sets PB0 to HIGH (Red LED on) and others to LOW (Green and Yellow off)
+  out PORT, r16        // Output the value of r16 to the PORT register (turns on the red light)
+  ret                  // Return from the red function
 
-green:
-  ldi r16, 0b00000010  ; Set PB1 (Green LED)
-  out PORT, r16
-  ret
+green:                 // Function to turn on the green light (PB1)
+  ldi r16, 0b00000010  // Load the value 0b00000010 into register r16 (binary: 00000010)
+                       // This value sets PB1 to HIGH (Green LED on) and others to LOW (Red and Yellow off)
+  out PORT, r16        // Output the value of r16 to the PORT register (turns on the green light)
+  ret                  // Return from the green function
 
-yellow:
-  ldi r16, 0b00000100  ; Set PB2 (Yellow LED)
-  out PORT, r16
-  ret
+yellow:                // Function to turn on the yellow light (PB2)
+  ldi r16, 0b00000100  // Load the value 0b00000100 into register r16 (binary: 00000100)
+                       // This value sets PB2 to HIGH (Yellow LED on) and others to LOW (Red and Green off)
+  out PORT, r16        // Output the value of r16 to the PORT register (turns on the yellow light)
+  ret                  // Return from the yellow function
 
-delay1s:
-  ldi r18, 82          ; Outer loop
-  ldi r19, 43          ; Middle loop
-  ldi r20, 0           ; Inner loop
+delay1s:               // Function to create a 1-second delay by using nested loops
+  ldi r18, 82          // Load the value 82 into register r18 (outer loop count)
+  ldi r19, 43          // Load the value 43 into register r19 (middle loop count)
+  ldi r20, 0           // Load the value 0 into register r20 (inner loop count)
 L1:
-  dec r20              ; Decrement inner loop
-  brne L1
-  dec r19              ; Decrement middle loop
-  brne L1
-  dec r18              ; Decrement outer loop
-  brne L1
-  ret
+  dec r20              // Decrement r20 (inner loop counter)
+  brne L1              // If r20 is not zero, branch back to L1 to continue the inner loop
+  dec r19              // Decrement r19 (middle loop counter)
+  brne L1              // If r19 is not zero, branch back to L1 to continue the middle loop
+  dec r18              // Decrement r18 (outer loop counter)
+  brne L1              // If r18 is not zero, branch back to L1 to continue the outer loop
+  ret                  // Return from the delay function

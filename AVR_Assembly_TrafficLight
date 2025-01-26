@@ -12,6 +12,9 @@
 // Used for controlling the I/O pins of the microcontroller
 #define DDR DDRB-0x20   // Set DDRB address to control direction for PB0, PB1, PB2 (Red, Green, Yellow)
 #define PORT PORTB-0x20 // Set PORTB address to control output for PB0, PB1, PB2 (Red, Green, Yellow)
+#define RED 0b00000001
+#define Green 0b00000010
+#define Yellow 0b00000100
 
 .global setup          // Global setup function that is executed once at the start
 setup:
@@ -32,19 +35,19 @@ loop:
   ret                  // Return from the loop function (the loop continues indefinitely)
 
 red:                   // Function to turn on the red light (PB0)
-  ldi r16, 0b00000001  // Load the value 0b00000001 into register r16 (binary: 00000001)
+  ldi r16, RED         // Load the value 0b00000001 into register r16 (binary: 00000001)
                        // This value sets PB0 to HIGH (Red LED on) and others to LOW (Green and Yellow off)
   out PORT, r16        // Output the value of r16 to the PORT register (turns on the red light)
   ret                  // Return from the red function
 
 green:                 // Function to turn on the green light (PB1)
-  ldi r16, 0b00000010  // Load the value 0b00000010 into register r16 (binary: 00000010)
+  ldi r16, Green  // Load the value 0b00000010 into register r16 (binary: 00000010)
                        // This value sets PB1 to HIGH (Green LED on) and others to LOW (Red and Yellow off)
   out PORT, r16        // Output the value of r16 to the PORT register (turns on the green light)
   ret                  // Return from the green function
 
 yellow:                // Function to turn on the yellow light (PB2)
-  ldi r16, 0b00000100  // Load the value 0b00000100 into register r16 (binary: 00000100)
+  ldi r16, Yellow  // Load the value 0b00000100 into register r16 (binary: 00000100)
                        // This value sets PB2 to HIGH (Yellow LED on) and others to LOW (Red and Green off)
   out PORT, r16        // Output the value of r16 to the PORT register (turns on the yellow light)
   ret                  // Return from the yellow function

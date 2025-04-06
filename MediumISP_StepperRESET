@@ -1,0 +1,26 @@
+#include <Stepper.h>
+
+const int stepsPerRevolution = 2048;  // 28BYJ-48 motor full rev
+
+// Initialize stepper on pins 8, 9, 10, 11
+Stepper stepper(stepsPerRevolution, 8, 10, 9, 11);
+
+const int hallSensorPin = 2;  // Digital pin connected to hall sensor
+
+void setup() {
+  pinMode(hallSensorPin, INPUT);
+  stepper.setSpeed(10);  // Set speed in RPM
+}
+
+void loop() {
+  // Keep stepping while no magnet is detected
+  while (digitalRead(hallSensorPin) == HIGH) {
+    stepper.step(1);  // Step one step forward
+  }
+
+  // Magnet detected — stop the stepper
+  while (true) {
+    // Motor is stopped
+    // You could blink an LED here or wait for a reset
+  }
+}

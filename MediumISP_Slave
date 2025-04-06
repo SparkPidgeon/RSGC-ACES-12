@@ -1,0 +1,134 @@
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+#include <stdint.h>
+#include "TinyWireS.h"  // I2C library for ATtiny (slave mode)
+
+#define IN1 PA0
+#define IN2 PA1
+#define IN3 PA2
+#define IN4 PA3
+#define MAG_SENSOR PA7
+#define I2C_SLAVE_ADDRESS 0x1  // I2C Address
+
+#define STEP_DELAY_MS 5
+
+const uint8_t stepSequence[4] = {
+    (1 << IN4) | (1 << IN3),
+    (1 << IN3) | (1 << IN2),
+    (1 << IN2) | (1 << IN1),
+    (1 << IN1) | (1 << IN4)
+};
+
+volatile uint8_t receivedCommand = 0;  // Store received I2C command
+
+void setupPins() {
+    DDRA |= (1 << IN1) | (1 << IN2) | (1 << IN3) | (1 << IN4);
+    DDRA &= ~(1 << MAG_SENSOR);  // Set PA7 as input for magnet sensor
+}
+
+void stopMotor() {
+    PORTA &= ~((1 << IN1) | (1 << IN2) | (1 << IN3) | (1 << IN4));
+}
+
+void stepMotorBackward(uint8_t delayMs) {
+    for (int i = 0; i < 4; i++) {
+        PORTA = (PORTA & 0xF0) | stepSequence[i];
+        _delay_ms(delayMs);
+    }
+}
+
+void stepExtraSteps(uint8_t delayMs, uint16_t steps) {
+    for (uint16_t i = 0; i < steps; i++) {
+        stepMotorBackward(delayMs);
+    }
+}
+
+// Corrected function to read received I2C data
+void receiveEvent(uint8_t howMany) {
+    if (TinyWireS.available()) {
+        receivedCommand = TinyWireS.read();  // Use `.read()` instead of `.receive()`
+    }
+}
+
+// Define extra steps for each character (letters, numbers, and special characters)
+uint16_t getExtraSteps(char command) {
+    switch (command) {
+        case 'a': return 0;
+        case 'b': return 10;
+        case 'c': return 25;
+        case 'd': return 35;
+        case 'e': return 50;
+        case 'f': return 60;
+        case 'g': return 80;
+        case 'h': return 95;
+        case 'i': return 105;
+        case 'j': return 115;
+        case 'k': return 125;
+        case 'l': return 145;
+        case 'm': return 160;
+        case 'n': return 170;
+        case 'o': return 180;
+        case 'p': return 190;
+        case 'q': return 210;
+        case 'r': return 225;
+        case 's': return 235;
+        case 't': return 245;
+        case 'u': return 255;
+        case 'v': return 270;
+        case 'w': return 280;
+        case 'x': return 300;
+        case 'y': return 310;
+        case 'z': return 320;
+        
+        case '1': return 330;
+        case '2': return 350;
+        case '3': return 360;
+        case '4': return 370;
+        case '5': return 380;
+        case '6': return 400;
+        case '7': return 410;
+        case '8': return 420;
+        case '9': return 440;
+        case '0': return 450;
+        
+        case '!': return 460;
+        case '@': return 475;
+        case '#': return 490;
+        case ' ': return 500;
+
+        default: return 0;  // Default case (shouldn't happen)
+    }
+}
+
+int main() {
+    setupPins();
+    TinyWireS.begin(I2C_SLAVE_ADDRESS);
+    TinyWireS.onReceive(receiveEvent);
+    sei();  // Enable global interrupts
+
+    while (1) {
+        if ((receivedCommand >= 'a' && receivedCommand <= 'z') || 
+            (receivedCommand >= '1' && receivedCommand <= '9') || 
+            (receivedCommand == '0') || 
+            (receivedCommand == '!') || 
+            (receivedCommand == '@') || 
+            (receivedCommand == '#') || 
+            (receivedCommand == ' ')) {
+            
+            uint16_t extraSteps = getExtraSteps(receivedCommand);
+
+            // Keep moving until a magnet is detected
+            while (!(PINA & (1 << MAG_SENSOR))) {
+                stepMotorBackward(STEP_DELAY_MS);
+            }
+
+            // Magnet detected - move extra steps
+            stopMotor();
+            stepExtraSteps(STEP_DELAY_MS, extraSteps);
+            stopMotor();
+
+            receivedCommand = 0;  // Reset command
+        }
+    }
+}

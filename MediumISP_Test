@@ -1,0 +1,62 @@
+#include <avr/io.h>
+#include <util/delay.h>
+
+#define IN1 PA0
+#define IN2 PA1
+#define IN3 PA2
+#define IN4 PA3
+#define MAG_SENSOR PA7
+
+#define STEP_DELAY_MS 2
+#define EXTRA_STEPS 30  // Change this value to set a larger number of extra steps
+
+// Full-step backward sequence (counter-clockwise)
+const uint8_t stepSequence[4] = {
+  (1 << IN4) | (1 << IN3),
+  (1 << IN3) | (1 << IN2),
+  (1 << IN2) | (1 << IN1),
+  (1 << IN1) | (1 << IN4)
+};
+
+void setupPins() {
+  DDRA |= (1 << IN1) | (1 << IN2) | (1 << IN3) | (1 << IN4); // Set motor pins to output
+  DDRA &= ~(1 << MAG_SENSOR); // Magnet sensor as input
+}
+
+void stopMotor() {
+  PORTA &= ~((1 << IN1) | (1 << IN2) | (1 << IN3) | (1 << IN4)); // Clear motor pins
+}
+
+void stepMotorBackward(uint8_t delayMs) {
+  for (int i = 0; i < 4; i++) {
+    PORTA = (PORTA & 0xF0) | stepSequence[i]; // Mask to keep only lower 4 bits
+    _delay_ms(delayMs);
+  }
+}
+
+void stepExtraSteps(uint8_t delayMs, uint16_t steps) {
+  for (uint16_t i = 0; i < steps; i++) {
+    stepMotorBackward(delayMs);
+  }
+}
+
+int main() {
+  setupPins();
+
+  while (1) {
+    if (!(PINA & (1 << MAG_SENSOR))) { // Magnet detected (LOW)
+      stopMotor();
+      _delay_ms(50); // Optional short pause
+      stepExtraSteps(STEP_DELAY_MS, EXTRA_STEPS);  // Now handles larger numbers of extra steps
+      stopMotor();
+      break; // Exit the loop and halt forever
+    } else {
+      stepMotorBackward(STEP_DELAY_MS);
+    }
+  }
+
+  // Final idle loop — stay off forever
+  while (1) {
+    stopMotor();
+  }
+}
